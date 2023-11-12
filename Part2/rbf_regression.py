@@ -74,10 +74,14 @@ class RBFRegression():
 
         # ====================================================
         # TODO: Implement your solution within the box
-        f = self.parameters[0][0]
-        for i in range(1, len(self.parameters)):
-            f += self.parameters[i][0] *  self._rbf_2d(X,i-1)
-        return f
+        k = self.K
+
+        fx = np.zeros((X.shape[0], 1)) + self.parameters[0]
+
+        for i in range(0, k):
+            fx = fx + self._rbf_2d(X, i) * self.parameters[i+1]
+
+        return fx
         # ====================================================
     
     def fit_with_l2_regularization(self, train_X, train_Y, l2_coef):
@@ -102,16 +106,20 @@ class RBFRegression():
 
         # ====================================================
         # TODO: Implement your solution within the box
-        x = train_X
-        B = np.zeros(shape=(x.shape[0],self.K))
-        for i in range(B.shape[0]):
-            for j in range(B.shape[1]):
-                B[i][j] = self._rbf_2d(x[i],j)[0][0]
+        K = self.K
 
-        y = train_Y
-        ones_column = np.ones((B.shape[0], 1))
-        B= np.hstack((ones_column, B))
-        self.parameters = np.linalg.pinv(B.T @ B + l2_coef*np.identity(B.shape[1]))  @ B.T @ y
+        # have to generate B
+        B = np.concatenate([self._rbf_2d(train_X, i) for i in range(0, K)], axis=1)
+
+        pad_B = np.hstack((np.ones((B.shape[0], 1)), B))
+
+        bTb = np.matmul(pad_B.T, pad_B)
+        identity = l2_coef * np.identity(bTb.shape[0])
+        inverse = np.linalg.inv(bTb + identity)
+        inverseB = np.matmul(inverse, pad_B.T)
+        parameters = np.matmul(inverseB, train_Y)
+        
+        self.parameters = parameters
         # ====================================================
 
         assert self.parameters.shape == (self.K + 1, 1)
